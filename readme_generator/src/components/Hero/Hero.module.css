@@ -1,0 +1,23 @@
+.hero {
+    @apply bg-gradient-to-r from-primary to-secondary text-primary-foreground py-24;
+  }
+  
+  .container {
+    @apply max-w-7xl mx-auto px-4 text-center;
+  }
+  
+  .title {
+    @apply text-5xl font-bold mb-4;
+  }
+  
+  .description {
+    @apply text-xl mb-8 opacity-90;
+  }
+  
+  .cta {
+    @apply inline-flex items-center bg-background text-primary px-6 py-3 rounded-full font-semibold no-underline transition-colors hover:bg-accent;
+  }
+  
+  .icon {
+    @apply ml-2;
+  }
