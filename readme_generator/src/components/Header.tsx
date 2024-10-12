@@ -7,7 +7,7 @@ export default function Header() {
     <header className="w-full bg-secondary-900 text-white fixed top-0 z-50">
       <nav className="container mx-auto px-4 py-4 flex justify-between items-center">
         <Link href="/" className="flex items-center">
-          <Image src="/../app/public/logo.svg" alt="ReadmeGen Logo" width={200} height={50} priority />
+<Image src="/logo.svg" alt="ReadmeGen Logo" width={200} height={50} priority />
         </Link>
         <ul className="flex space-x-6 items-center">
           {NAV_ITEMS.map((item) => (
@@ -18,14 +18,14 @@ export default function Header() {
             </li>
           ))}
           <li>
-            <Link href="/signin" className="text-secondary-200 hover:text-primary-500 transition-colors">
-              Sign In
-            </Link>
+          <Link href="/signin" prefetch={true} className="text-secondary-200 hover:text-primary-500 transition-colors">
+  Sign In
+</Link>
           </li>
           <li>
-            <Link href="/signup" className="bg-primary-600 text-white px-4 py-2 rounded-md hover:bg-primary-700 transition-colors">
-              Sign Up
-            </Link>
+          <Link href="/signup" prefetch={true} className="bg-primary-600 text-white px-4 py-2 rounded-md hover:bg-primary-700 transition-colors">
+  Sign Up
+</Link>
           </li>
         </ul>
       </nav>

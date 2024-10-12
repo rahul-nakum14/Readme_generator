@@ -12,11 +12,17 @@ export const metadata: Metadata = {
   icons: [
     {
       rel: 'icon',
+      type: 'image/x-icon',
+      url: '/favicon.ico',
+    },
+    {
+      rel: 'icon',
       type: 'image/svg+xml',
-      url: '/../favicon.svg',
+      url: '/favicon.svg',
     },
   ],
 }
+
 
 export default function RootLayout({
   children,
