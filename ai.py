@@ -1,10 +1,12 @@
 from flask import Flask, request, Response
-import os
+from flask_socketio import SocketIO, emit
 import requests
-import shutil
-from pathlib import Path
+from meta_ai_api import MetaAI
 from collections import defaultdict
 from flask_cors import CORS
+import os
+import threading  # For threading to speed up
+import time  # For simulating a delay (to track progress)
 
 # Groq API credentials
 GROQ_API_KEY = "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"  # Replace with your Groq API key
@@ -28,37 +30,18 @@ SUPPORTED_EXTENSIONS = {
 }
 
 app = Flask(__name__)
-CORS(app)
+CORS(app, resources={r"/*": {"origins": "*"}})
+socketio = SocketIO(app, cors_allowed_origins="*")
 
-def clone_repository(repo_url, dest_path):
-    """Clone the GitHub repository to the destination path."""
-    if os.system(f"git clone {repo_url} {dest_path}") != 0:
-        raise Exception(f"Failed to clone repository: {repo_url}")
+def fetch_file_content(file_url):
+    """Fetch the content of a file from GitHub."""
+    response = requests.get(file_url)
+    if response.status_code != 200:
+        raise Exception(f"Failed to fetch file content: {response.json().get('message')}")
+    return response.text
 
-def analyze_repository(repo_path):
-    """Analyze the repository by identifying files in different programming languages."""
-    analysis = defaultdict(list)
-    for root, _, files in os.walk(repo_path):
-        for file in files:
-            ext = os.path.splitext(file)[1]
-            if ext in SUPPORTED_EXTENSIONS:
-                language = SUPPORTED_EXTENSIONS[ext]
-                with open(os.path.join(root, file), "r", errors="ignore") as f:
-                    content = f.read()
-                analysis[language].append(f"File: {file}\n{content[:500]}...\n")  # Limit to 500 characters for brevity
-
-    if not analysis:
-        return "No supported programming language files found in the repository."
-
-    analysis_summary = ""
-    for language, files_content in analysis.items():
-        analysis_summary += f"### {language} Files\n"
-        analysis_summary += "\n".join(files_content) + "\n"
-
-    return analysis_summary
-
-def generate_readme(analysis):
-    """Generate a README file using the Groq API."""
+def generate_readme_with_groq(file_content, file_name):
+    """Generate a README for a file using the Groq API."""
     headers = {
         "Authorization": f"Bearer {GROQ_API_KEY}",
         "Content-Type": "application/json",
@@ -68,299 +51,96 @@ def generate_readme(analysis):
         "messages": [
             {
                 "role": "user",
-                "content": f"Generate a detailed README file for the following project:\n{analysis}",
+                "content": f"Generate a README section for the following file ({file_name}):\n{file_content}",
             }
         ],
     }
-
     response = requests.post(GROQ_API_URL, headers=headers, json=payload)
     response.raise_for_status()
-
     result = response.json()
     if "choices" in result and len(result["choices"]) > 0:
         return result["choices"][0]["message"]["content"]
     else:
         raise Exception("No content returned from Groq API")
 
-@app.route('/generate_readme', methods=['POST'])
-def generate_readme_route():
-    data = request.get_json()
+def generate_readme_with_meta_ai(file_content, file_name):
+    """Generate a README for a file using the MetaAI API."""
+    ai = MetaAI()
+    response = ai.prompt(
+        message=f"Generate a README section for the following file ({file_name}):\n{file_content}"
+    )
+    return response["message"]
+
+def get_files_from_github(repo_url):
+    """Retrieve the list of files from the GitHub repository."""
+    owner, repo = repo_url.rstrip("/").rsplit("/", 2)[-2:]
+    api_url = f"https://api.github.com/repos/{owner}/{repo}/contents"
+    response = requests.get(api_url)
+    if response.status_code != 200:
+        raise Exception(f"Failed to fetch repository contents: {response.json().get('message')}")
+    return response.json()
+
+def process_file(file, socket, repo_url, progress_lock):
+    """Process a file (fetch content, generate README, and emit progress)."""
+    try:
+        ext = file["name"].split(".")[-1]
+        if ext in SUPPORTED_EXTENSIONS:
+            file_content = fetch_file_content(file["download_url"])
+
+            # Simulate delay for progress tracking
+            time.sleep(2)  # Simulate time taken for file processing
+
+            # Track progress
+            with progress_lock:
+                socket.emit("progress", {"status": f"Processing {file['name']}..."})
+
+            try:
+                readme_section = generate_readme_with_groq(file_content, file["name"])
+            except Exception as groq_error:
+                socket.emit("error", {"message": f"Groq API failed for {file['name']}: {groq_error}"})
+                readme_section = generate_readme_with_meta_ai(file_content, file["name"])
+
+            socket.emit("readme_section", {
+                "file_name": file["name"],
+                "readme_content": readme_section
+            })
+
+    except Exception as e:
+        socket.emit("error", {"message": f"Error processing file {file['name']}: {str(e)}"})
+
+@socketio.on('generate_readme')
+def handle_generate_readme(data):
     repo_url = data.get("repoUrl")
-
+    
     if not repo_url:
-        return Response("Error: No repository URL provided", status=400)
+        emit("error", {"message": "No repository URL provided"})
+        return
 
-    repo_path = Path("./repo")
-    output_dir = Path("./test")
-    output_dir.mkdir(parents=True, exist_ok=True)
+    try:
+        files = get_files_from_github(repo_url)
+        
+        # Track overall progress
+        progress_lock = threading.Lock()
 
-    def generate():
-        try:
-            yield "Cloning repository...\n"
-            clone_repository(repo_url, repo_path)
+        # Emit overall progress
+        emit("progress", {"status": "Cloning repository and analyzing files..."})
 
-            yield "Analyzing repository...\n"
-            analysis = analyze_repository(repo_path)
+        # Use threading to process files concurrently
+        threads = []
+        for file in files:
+            if file["type"] == "file":
+                thread = threading.Thread(target=process_file, args=(file, socket, repo_url, progress_lock))
+                threads.append(thread)
+                thread.start()
 
-            yield "Generating README...\n"
-            readme_content = generate_readme(analysis)
+        # Wait for all threads to finish
+        for thread in threads:
+            thread.join()
 
-            output_file = output_dir / "README.md"
-            with open(output_file, "w") as f:
-                f.write(readme_content)
+        emit("progress", {"status": "README generation complete!"})
 
-            yield readme_content
-
-        except Exception as e:
-            yield f"Error: {str(e)}\n"
-        finally:
-            # Clean up cloned repository
-            if repo_path.exists():
-                shutil.rmtree(repo_path)
-
-    return Response(generate(), mimetype='text/event-stream')
+    except Exception as e:
+        emit("error", {"message": str(e)})
 
 if __name__ == "__main__":
-    app.run(debug=True)
-    
-# from flask import Flask, request, jsonify
-# import os
-# import requests
-# import shutil
-# from pathlib import Path
-# from collections import defaultdict
-
-# # Groq API credentials
-# GROQ_API_KEY = "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"  # Replace with your Groq API key
-# GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
-
-# # Supported extensions for programming languages
-# SUPPORTED_EXTENSIONS = {
-#     ".go": "Go",
-#     ".py": "Python",
-#     ".js": "JavaScript",
-#     ".ts": "TypeScript",
-#     ".java": "Java",
-#     ".rb": "Ruby",
-#     ".php": "PHP",
-#     ".cs": "C#",
-#     ".cpp": "C++",
-#     ".c": "C",
-#     ".html": "HTML",
-#     ".css": "CSS",
-#     ".sh": "Shell",
-# }
-
-# app = Flask(__name__)
-
-# def clone_repository(repo_url, dest_path):
-#     """Clone the GitHub repository to the destination path."""
-#     if os.system(f"git clone {repo_url} {dest_path}") != 0:
-#         raise Exception(f"Failed to clone repository: {repo_url}")
-
-
-# def analyze_repository(repo_path):
-#     """Analyze the repository by identifying files in different programming languages."""
-#     analysis = defaultdict(list)
-#     for root, _, files in os.walk(repo_path):
-#         for file in files:
-#             ext = os.path.splitext(file)[1]
-#             if ext in SUPPORTED_EXTENSIONS:
-#                 language = SUPPORTED_EXTENSIONS[ext]
-#                 with open(os.path.join(root, file), "r", errors="ignore") as f:
-#                     content = f.read()
-#                 analysis[language].append(f"File: {file}\n{content[:500]}...\n")  # Limit to 500 characters for brevity
-
-#     if not analysis:
-#         return "No supported programming language files found in the repository."
-
-#     analysis_summary = ""
-#     for language, files_content in analysis.items():
-#         analysis_summary += f"### {language} Files\n"
-#         analysis_summary += "\n".join(files_content) + "\n"
-
-#     return analysis_summary
-
-
-# def generate_readme(analysis):
-#     """Generate a README file using the Groq API."""
-#     headers = {
-#         "Authorization": f"Bearer {GROQ_API_KEY}",
-#         "Content-Type": "application/json",
-#     }
-#     payload = {
-#         "model": "llama-3.3-70b-versatile",
-#         "messages": [
-#             {
-#                 "role": "user",
-#                 "content": f"Generate a detailed README file for the following project:\n{analysis}",
-#             }
-#         ],
-#     }
-
-#     response = requests.post(GROQ_API_URL, headers=headers, json=payload)
-#     response.raise_for_status()
-
-#     result = response.json()
-#     if "choices" in result and len(result["choices"]) > 0:
-#         return result["choices"][0]["message"]["content"]
-#     else:
-#         raise Exception("No content returned from Groq API")
-
-
-# @app.route('/')
-# def index():
-#     return open("index.html").read()  # Return the HTML form
-
-# @app.route('/generate_readme', methods=['POST'])
-# def generate_readme_route():
-#     data = request.get_json()
-#     repo_url = data.get("repoUrl")
-
-#     if not repo_url:
-#         return jsonify({"error": "No repository URL provided"}), 400
-
-#     repo_path = Path("./repo")
-#     output_dir = Path("./test")
-#     output_dir.mkdir(parents=True, exist_ok=True)
-
-#     try:
-#         print("Cloning repository...")
-#         clone_repository(repo_url, repo_path)
-
-#         print("Analyzing repository...")
-#         analysis = analyze_repository(repo_path)
-
-#         print("Generating README...")
-#         readme_content = generate_readme(analysis)
-
-#         output_file = output_dir / "README.md"
-#         with open(output_file, "w") as f:
-#             f.write(readme_content)
-
-#         return jsonify({"readmeContent": readme_content})
-
-#     except Exception as e:
-#         return jsonify({"error": str(e)}), 500
-#     finally:
-#         # Clean up cloned repository
-#         if repo_path.exists():
-#             shutil.rmtree(repo_path)
-
-# if __name__ == "__main__":
-#     app.run(debug=True)
-
-# # import os
-# # import requests
-# # import json
-# # import shutil
-# # from pathlib import Path
-# # from collections import defaultdict
-
-# # GROQ_API_KEY = "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"  # Replace with your Groq API key
-# # GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
-
-# # SUPPORTED_EXTENSIONS = {
-# #     ".go": "Go",
-# #     ".py": "Python",
-# #     ".js": "JavaScript",
-# #     ".ts": "TypeScript",
-# #     ".java": "Java",
-# #     ".rb": "Ruby",
-# #     ".php": "PHP",
-# #     ".cs": "C#",
-# #     ".cpp": "C++",
-# #     ".c": "C",
-# #     ".html": "HTML",
-# #     ".css": "CSS",
-# #     ".sh": "Shell",
-# # }
-
-# # def clone_repository(repo_url, dest_path):
-# #     """Clone the GitHub repository to the destination path."""
-# #     if os.system(f"git clone {repo_url} {dest_path}") != 0:
-# #         raise Exception(f"Failed to clone repository: {repo_url}")
-
-
-# # def analyze_repository(repo_path):
-# #     """Analyze the repository by identifying files in different programming languages."""
-# #     analysis = defaultdict(list)
-# #     for root, _, files in os.walk(repo_path):
-# #         for file in files:
-# #             ext = os.path.splitext(file)[1]
-# #             if ext in SUPPORTED_EXTENSIONS:
-# #                 language = SUPPORTED_EXTENSIONS[ext]
-# #                 with open(os.path.join(root, file), "r", errors="ignore") as f:
-# #                     content = f.read()
-# #                 analysis[language].append(f"File: {file}\n{content[:500]}...\n")  # Limit to 500 characters for brevity
-
-# #     if not analysis:
-# #         return "No supported programming language files found in the repository."
-
-# #     analysis_summary = ""
-# #     for language, files_content in analysis.items():
-# #         analysis_summary += f"### {language} Files\n"
-# #         analysis_summary += "\n".join(files_content) + "\n"
-
-# #     return analysis_summary
-
-
-# # def generate_readme(analysis):
-# #     """Generate a README file using the Groq API."""
-# #     headers = {
-# #         "Authorization": f"Bearer {GROQ_API_KEY}",
-# #         "Content-Type": "application/json",
-# #     }
-# #     payload = {
-# #         "model": "llama-3.3-70b-versatile",
-# #         "messages": [
-# #             {
-# #                 "role": "user",
-# #                 "content": f"Generate a detailed README file for the following project:\n{analysis}",
-# #             }
-# #         ],
-# #     }
-
-# #     response = requests.post(GROQ_API_URL, headers=headers, json=payload)
-# #     response.raise_for_status()
-
-# #     result = response.json()
-# #     if "choices" in result and len(result["choices"]) > 0:
-# #         return result["choices"][0]["message"]["content"]
-# #     else:
-# #         raise Exception("No content returned from Groq API")
-
-
-# # def main():
-# #     repo_url = input("Enter the GitHub repository URL: ").strip()
-# #     repo_path = Path("./repo")
-# #     output_dir = Path("./test")
-
-# #     # Ensure output directory exists
-# #     output_dir.mkdir(parents=True, exist_ok=True)
-
-# #     try:
-# #         print("Cloning repository...")
-# #         clone_repository(repo_url, repo_path)
-
-# #         print("Analyzing repository...")
-# #         analysis = analyze_repository(repo_path)
-
-# #         print("Generating README...")
-# #         readme_content = generate_readme(analysis)
-
-# #         output_file = output_dir / "README.md"
-# #         with open(output_file, "w") as f:
-# #             f.write(readme_content)
-
-# #         print(f"README.md generated successfully! You can find it at: {output_file}")
-# #     except Exception as e:
-# #         print(f"Error: {e}")
-# #     finally:
-# #         # Clean up cloned repository
-# #         if repo_path.exists():
-# #             shutil.rmtree(repo_path)
-
-
-# # if __name__ == "__main__":
-# #     main()
+    socketio.run(app, debug=True)

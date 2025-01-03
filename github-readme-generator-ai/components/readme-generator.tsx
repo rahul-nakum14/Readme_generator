@@ -1,4 +1,4 @@
-'use client'
+"use client"
 
 import { useState, useEffect, FormEvent } from 'react'
 import { Button } from "@/components/ui/button"
@@ -7,64 +7,52 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Loader2, Github, Check } from 'lucide-react'
 import { Textarea } from "@/components/ui/textarea"
 import { GitHubMarkdownPreview } from './github-markdown-preview'
+import { io, Socket } from 'socket.io-client'; // Correctly import `io` and `Socket`
+
+// Correctly create the socket connection
+const socket: Socket = io('https://fantastic-fishstick-p4rxprvpjvv39945-5000.app.github.dev'); // Correct URL
 
 export default function ReadmeGenerator() {
-  const [repoUrl, setRepoUrl] = useState('')
-  const [isLoading, setIsLoading] = useState(false)
-  const [readmeContent, setReadmeContent] = useState('')
-  const [error, setError] = useState('')
-  const [progress, setProgress] = useState<string[]>([])
+  const [repoUrl, setRepoUrl] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [readmeContent, setReadmeContent] = useState('');
+  const [error, setError] = useState('');
+  const [progress, setProgress] = useState<string[]>([]);
 
-  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault()
+  useEffect(() => {
+    // Set up WebSocket event listeners
+    socket.on('readme_section', (data: { readme_content: string }) => {
+      setReadmeContent((prev) => prev + data.readme_content); // Append each chunk of README
+    });
+
+    socket.on('error', (err: { message: string }) => {
+      setError(err.message); // Display errors
+    });
+
+    socket.on('progress', (status: string) => {
+      setProgress((prev) => [...prev, status]); // Update progress steps
+    });
+
+    return () => {
+      socket.disconnect(); // Disconnect WebSocket when the component unmounts
+    };
+  }, []);
+
+  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
     if (!repoUrl.trim()) {
-      setError('Please enter a valid GitHub repository URL')
-      return
+      setError('Please enter a valid GitHub repository URL');
+      return;
     }
-    setIsLoading(true)
-    setReadmeContent('')
-    setError('')
-    setProgress([])
 
-    try {
-      const response = await fetch("https://fantastic-fishstick-p4rxprvpjvv39945-5000.app.github.dev/generate_readme", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ repoUrl }),
-      })
+    setIsLoading(true);
+    setReadmeContent('');
+    setError('');
+    setProgress([]);
 
-      if (!response.ok) {
-        throw new Error('Failed to generate README')
-      }
-
-      const reader = response.body?.getReader()
-      if (!reader) {
-        throw new Error('Failed to read response')
-      }
-
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-        const chunk = new TextDecoder().decode(value)
-        if (chunk.startsWith("Cloning repository...")) {
-          setProgress(prev => [...prev, "Cloning repository"])
-        } else if (chunk.startsWith("Analyzing repository...")) {
-          setProgress(prev => [...prev, "Analyzing repository"])
-        } else if (chunk.startsWith("Generating README...")) {
-          setProgress(prev => [...prev, "Generating README"])
-        } else {
-          setReadmeContent(prev => prev + chunk)
-        }
-      }
-    } catch (err) {
-      setError('An error occurred while generating the README. Please try again.')
-      console.error(err)
-    } finally {
-      setIsLoading(false)
-    }
-  }
+    // Emit the 'generate_readme' event with the repository URL
+    socket.emit('generate_readme', { repoUrl });
+  };
 
   return (
     <div className="min-h-screen p-8 flex items-center justify-center">
@@ -158,5 +146,5 @@ export default function ReadmeGenerator() {
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }
