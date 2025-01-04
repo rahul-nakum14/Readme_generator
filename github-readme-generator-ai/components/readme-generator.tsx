@@ -17,30 +17,36 @@ export default function AIReadmeGenerator() {
   const [readmeContent, setReadmeContent] = useState("")
   const [progress, setProgress] = useState<string[]>([])
   const [error, setError] = useState("")
-
-  useEffect(() => {
+useEffect(() => {
     socket.on("readme_section", (data: { readme_content: string }) => {
-      setReadmeContent((prev) => prev + data.readme_content)
+        if (data?.readme_content) {
+            setReadmeContent((prev) => prev + data.readme_content)
+        } else {
+            setError("Invalid data received from server.")
+        }
     })
 
     socket.on("progress", (status: { status: string }) => {
-      // Check if the status message indicates completion
-      if (status.status === "README generation complete!") {
-        setIsLoading(false)
-      } else {
-        setProgress((prev) => [...prev, status.status])
-      }
+        if (status?.status) {
+            if (status.status === "README generation complete!") {
+                setIsLoading(false)
+            } else {
+                setProgress((prev) => [...prev, status.status])
+            }
+        } else {
+            setError("Invalid progress data received from server.")
+        }
     })
 
     socket.on("error", (err: { message: string }) => {
-      setError(err.message)
-      setIsLoading(false)
+        setError(err.message || "An unknown error occurred.")
+        setIsLoading(false)
     })
 
     return () => {
-      socket.disconnect()
+        socket.disconnect()
     }
-  }, [])
+}, [])
 
   const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -75,7 +81,7 @@ export default function AIReadmeGenerator() {
                 placeholder="https://github.com/username/repo"
                 value={repoUrl}
                 onChange={(e) => setRepoUrl(e.target.value)}
-                className="pl-10 bg-[#0d1117] border-[#30363d] text-white placeholder-gray-500"
+                className="pl-10 bg-[#0d1117] border-[#30363d] text-black placeholder-gray-500"
                 required
               />
             </div>
