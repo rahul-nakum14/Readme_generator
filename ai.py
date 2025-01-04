@@ -3,10 +3,15 @@ from flask import Flask, request
 from flask_socketio import SocketIO
 from threading import Thread, Lock
 import google.generativeai as genai
+from flask_cors import CORS  # Import the CORS class
 
 # Configuration
 app = Flask(__name__)
-socketio = SocketIO(app, cors_allowed_origins="*")
+
+# Enable CORS for both Flask app and SocketIO
+CORS(app)  # For Flask
+socketio = SocketIO(app, cors_allowed_origins=["https://fantastic-fishstick-p4rxprvpjvv39945-3000.app.github.dev"])
+
 SUPPORTED_EXTENSIONS = [".py", ".js", ".ts", ".go", ".java"]
 GROQ_API_KEY = "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"  # Replace with your Groq API key
 GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
@@ -85,11 +90,12 @@ def generate_readme_with_groq(file_content, file_name):
 
 def process_file(file, socketio, lock, sid):
     try:
-        # Ensure 'file' is a dictionary
-        if isinstance(file, dict):
-            ext = file.get("name", "").split(".")[-1]
+        # Check that the file is a dictionary and contains expected keys
+        if isinstance(file, dict) and 'name' in file and 'download_url' in file:
+            ext = file["name"].split(".")[-1]
             if f".{ext}" in SUPPORTED_EXTENSIONS:
-                content = fetch_file_content(file.get("download_url"))
+                content = fetch_file_content(file["download_url"])
+
                 # Attempt to generate README with GPT first
                 readme = generate_readme_with_gpt(content, file["name"])
                 if "Error" in readme:
@@ -108,7 +114,7 @@ def process_file(file, socketio, lock, sid):
                 with lock:
                     socketio.emit("readme_section", {"readme_content": readme}, room=sid)
         else:
-            raise TypeError(f"Expected file to be a dictionary, got {type(file)}")
+            raise ValueError("Invalid file format or missing required keys ('name' and 'download_url')")
 
     except Exception as e:
         socketio.emit("error", {"message": f"Error processing {file.get('name', 'unknown')}: {str(e)}"}, room=sid)
@@ -118,79 +124,30 @@ def handle_generate_readme(data):
     repo_url = data.get("repoUrl")
     sid = request.sid
     try:
+        # Get the files from the GitHub API
+        headers = {
+            "Authorization": "Bearer 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"  # Replace with your GitHub token
+        }
+
         api_url = f"https://api.github.com/repos/{'/'.join(repo_url.rstrip('/').split('/')[-2:])}/contents"
-        files = requests.get(api_url).json()
-        lock = Lock()
-        threads = [
-            Thread(target=process_file, args=(file, socketio, lock, sid)) for file in files if file["type"] == "file"
-        ]
-        for thread in threads:
-            thread.start()
-        for thread in threads:
-            thread.join()
-        socketio.emit("progress", {"status": "README generation complete!"}, room=sid)
+        response = requests.get(api_url, headers=headers)
+        response.raise_for_status()  # Raise exception for non-200 responses
+        files = response.json()
+
+        if isinstance(files, list):  # Ensure 'files' is a list
+            lock = Lock()
+            threads = [
+                Thread(target=process_file, args=(file, socketio, lock, sid)) for file in files if file.get("type") == "file"
+            ]
+            for thread in threads:
+                thread.start()
+            for thread in threads:
+                thread.join()
+            socketio.emit("progress", {"status": "README generation complete!"}, room=sid)
+        else:
+            raise ValueError("GitHub API response is not in the expected format.")
     except Exception as e:
         socketio.emit("error", {"message": str(e)}, room=sid)
 
 if __name__ == "__main__":
     socketio.run(app, debug=True)
-
-# from flask import Flask, request
-# from flask_socketio import SocketIO
-# import requests
-# from threading import Thread, Lock
-
-# # Configuration
-# app = Flask(__name__)
-# socketio = SocketIO(app, cors_allowed_origins="*")
-# SUPPORTED_EXTENSIONS = [".py", ".js", ".ts", ".go", ".java"]
-# GROQ_API_KEY = "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"  # Replace with your Groq API key
-# GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
-
-# def fetch_file_content(file_url):
-#     response = requests.get(file_url)
-#     response.raise_for_status()
-#     return response.text
-
-# def generate_readme(file_content, file_name):
-#     headers = {"Authorization": f"Bearer {GROQ_API_KEY}", "Content-Type": "application/json"}
-#     payload = {
-#         "model": "llama-3.3-70b-versatile",
-#         "messages": [{"role": "user", "content": f"Generate README for file {file_name}:\n{file_content}"}],
-#     }
-#     response = requests.post(GROQ_API_URL, headers=headers, json=payload)
-#     response.raise_for_status()
-#     return response.json()["choices"][0]["message"]["content"]
-
-# def process_file(file, socketio, lock, sid):
-#     try:
-#         ext = file["name"].split(".")[-1]
-#         if f".{ext}" in SUPPORTED_EXTENSIONS:
-#             content = fetch_file_content(file["download_url"])
-#             readme = generate_readme(content, file["name"])
-#             with lock:
-#                 socketio.emit("readme_section", {"readme_content": readme}, room=sid)
-#     except Exception as e:
-#         socketio.emit("error", {"message": f"Error processing {file['name']}: {str(e)}"}, room=sid)
-
-# @socketio.on("generate_readme")
-# def handle_generate_readme(data):
-#     repo_url = data.get("repoUrl")
-#     sid = request.sid
-#     try:
-#         api_url = f"https://api.github.com/repos/{'/'.join(repo_url.rstrip('/').split('/')[-2:])}/contents"
-#         files = requests.get(api_url).json()
-#         lock = Lock()
-#         threads = [
-#             Thread(target=process_file, args=(file, socketio, lock, sid)) for file in files if file["type"] == "file"
-#         ]
-#         for thread in threads:
-#             thread.start()
-#         for thread in threads:
-#             thread.join()
-#         socketio.emit("progress", {"status": "README generation complete!"}, room=sid)
-#     except Exception as e:
-#         socketio.emit("error", {"message": str(e)}, room=sid)
-
-# if __name__ == "__main__":
-#     socketio.run(app, debug=True)

@@ -106,22 +106,23 @@ export default function AIReadmeGenerator() {
             ))}
           </ul>
         )}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
-          <Card className="p-4 bg-[#161b22] border-[#30363d]">
-            <h2 className="text-xl font-semibold text-white mb-4">Generated Markdown</h2>
-            <Textarea
-              value={readmeContent}
-              readOnly
-              className="w-full h-64 font-mono text-sm bg-[#0d1117] border-[#30363d] text-gray-300"
-              placeholder="Your generated README will appear here..."
-            />
-          </Card>
-          <Card className="p-4 bg-[#161b22] border-[#30363d]">
-            <h2 className="text-xl font-semibold text-white mb-4">Preview</h2>
-            <div className="bg-white rounded-lg p-4 h-64 overflow-auto">
-              <GitHubMarkdownPreview content={readmeContent || "# Preview\n\nYour README preview will appear here..."} />
-            </div>
-          </Card>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-6">
+        <Card className="p-6 bg-[#161b22] border-[#30363d]" >
+  <h2 className="text-xl font-semibold text-white mb-4">Generated Markdown</h2>
+  <Textarea
+    value={readmeContent}
+    readOnly
+    className="w-full h-96 font-mono text-sm bg-[#0d1117] border-[#30363d] text-gray-300"
+    placeholder="Your generated README will appear here..."
+  />
+</Card>
+<Card className="p-6 bg-[#161b22] border-[#30363d]">
+  <h2 className="text-xl font-semibold text-white mb-4">Preview</h2>
+  <div className="bg-white rounded-lg p-4 h-96 overflow-auto">
+    <GitHubMarkdownPreview content={readmeContent || "# Preview\n\nYour README preview will appear here..."} />
+  </div>
+</Card>
+
         </div>
       </Card>
     </div>
