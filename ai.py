@@ -24,6 +24,7 @@ def fetch_file_content(file_url):
     return response.text
 
 def generate_readme_with_gpt(file_content, file_name):
+    print(file_name)
     headers = {"Content-Type": "application/json"}
     payload = {
         "model": "gpt-4o-mini",
@@ -31,7 +32,7 @@ def generate_readme_with_gpt(file_content, file_name):
         "messages": [
             {
                 "role": "system",
-                "content": f"Create a README.md file for the file {file_name}:\n{file_content}. It should contain all necessary information like endpoint parameters, descriptions, etc."
+                "content": f"Create a README.md file for the file {file_name}:\n{file_content}. It should contain all necessary information like endpoint parameters, descriptions, etc. (Do not include ```markdown at the beggining)"
             },
             {
                 "role": "user",
@@ -39,24 +40,17 @@ def generate_readme_with_gpt(file_content, file_name):
             }
         ]
     }
-    print(file_name)
-
-    response = requests.post(GPT_API_URL, headers=headers, json=payload)
-    print(response)
-
-    if response.status_code == 200:
-        try:
+    try:
+        response = requests.post(GPT_API_URL, headers=headers, json=payload)
+        if response.status_code == 200:
             response_json = response.json()
-            # Now you can safely access the content in response_json
-            if "choices" in response_json:
-                print(response_json)
+            print(response_json)
+            if isinstance(response_json, dict) and "choices" in response_json:
                 return response_json["choices"][0]["message"]["content"]
-            else:
-                return f"Unexpected response format: {response_json}"
-        except ValueError:
-            return f"Error parsing JSON: {response.text}"
-    else:
-        return f"Error with the request: {response.status_code}, {response.text}"
+        return None
+    except Exception as e:
+        print(f"Error with GPT API: {e}")
+        return None
 
 def generate_readme_with_google(file_content, file_name):
     try:
@@ -65,7 +59,8 @@ def generate_readme_with_google(file_content, file_name):
         )
         return response.text
     except Exception as e:
-        return f"Error generating README with Google: {str(e)}"
+        print(f"Error with Google API: {e}")
+        return None
 
 def generate_readme_with_claude(file_content, file_name):
     headers = {"Content-Type": "application/json"}
@@ -83,9 +78,16 @@ def generate_readme_with_claude(file_content, file_name):
             }
         ]
     }
-    response = requests.post(GPT_API_URL, headers=headers, json=payload)
-    response.raise_for_status()
-    return response.json()["choices"][0]["message"]["content"]
+    try:
+        response = requests.post(GPT_API_URL, headers=headers, json=payload)
+        if response.status_code == 200:
+            response_json = response.json()
+            if isinstance(response_json, dict) and "choices" in response_json:
+                return response_json["choices"][0]["message"]["content"]
+        return None
+    except Exception as e:
+        print(f"Error with Claude API: {e}")
+        return None
 
 def generate_readme_with_llama(file_content, file_name):
     headers = {"Content-Type": "application/json"}
@@ -103,9 +105,16 @@ def generate_readme_with_llama(file_content, file_name):
             }
         ]
     }
-    response = requests.post(GPT_API_URL, headers=headers, json=payload)
-    response.raise_for_status()
-    return response.json()["choices"][0]["message"]["content"]
+    try:
+        response = requests.post(GPT_API_URL, headers=headers, json=payload)
+        if response.status_code == 200:
+            response_json = response.json()
+            if isinstance(response_json, dict) and "choices" in response_json:
+                return response_json["choices"][0]["message"]["content"]
+        return None
+    except Exception as e:
+        print(f"Error with Llama API: {e}")
+        return None
 
 def generate_readme_with_groq(file_content, file_name):
     headers = {"Authorization": f"Bearer {GROQ_API_KEY}", "Content-Type": "application/json"}
@@ -113,31 +122,42 @@ def generate_readme_with_groq(file_content, file_name):
         "model": "llama-3.3-70b-versatile",
         "messages": [{"role": "user", "content": f"Generate README for file {file_name}:\n{file_content}"}],
     }
-    response = requests.post(GROQ_API_URL, headers=headers, json=payload)
-    response.raise_for_status()
-    return response.json()["choices"][0]["message"]["content"]
+    try:
+        response = requests.post(GROQ_API_URL, headers=headers, json=payload)
+        if response.status_code == 200:
+            response_json = response.json()
+            if isinstance(response_json, dict) and "choices" in response_json:
+                return response_json["choices"][0]["message"]["content"]
+        return None
+    except Exception as e:
+        print(f"Error with Groq API: {e}")
+        return None
 
 def process_file(file, socketio, lock, sid):
     try:
         if isinstance(file, dict) and "name" in file and "download_url" in file:
             content = fetch_file_content(file["download_url"])
+            repo_url = file["download_url"]  # Assuming that the URL of the file corresponds to the repo URL
             
-            # Try generating README with multiple APIs in order
-            for method in [
-                generate_readme_with_gpt,
-                generate_readme_with_google,
-                generate_readme_with_claude,
-                generate_readme_with_llama,
-                generate_readme_with_groq,
-            ]:
-                try:
-                    readme = method(content, file["name"])
-                    if "Error" not in readme:
-                        break  # Stop at the first successful generation
-                except Exception as e:
-                    print(f"Error with {method.__name__}: {e}")
-                    continue
-
+            # Try generating README with GPT first
+            readme = generate_readme_with_gpt(content, repo_url)
+            
+            # If GPT fails, try with Google Gemini
+            if not readme:
+                readme = generate_readme_with_google(content, repo_url)
+            
+            # If Gemini fails, try with Claude
+            if not readme:
+                readme = generate_readme_with_claude(content, repo_url)
+            
+            # If Claude fails, try with Llama
+            if not readme:
+                readme = generate_readme_with_llama(content, repo_url)
+            
+            # If all API calls fail, try with Groq
+            if not readme:
+                readme = generate_readme_with_groq(content, repo_url)
+            
             with lock:
                 socketio.emit("readme_section", {"readme_content": readme}, room=sid)
         else:

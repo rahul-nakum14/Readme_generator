@@ -18,6 +18,7 @@ export default function AIReadmeGenerator() {
   const [progress, setProgress] = useState<string[]>([])
   const [error, setError] = useState("")
 useEffect(() => {
+
     socket.on("readme_section", (data: { readme_content: string }) => {
         if (data?.readme_content) {
             setReadmeContent((prev) => prev + data.readme_content)
