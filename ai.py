@@ -3,15 +3,24 @@ from flask import Flask, request
 from flask_socketio import SocketIO
 from threading import Thread, Lock
 import google.generativeai as genai
+from flask_cors import CORS
 
 # Configuration
 app = Flask(__name__)
-socketio = SocketIO(app, cors_allowed_origins="*")
-SUPPORTED_EXTENSIONS = [".py", ".js", ".ts", ".go", ".java"]
+CORS(app)  # Enable CORS for Flask
+socketio = SocketIO(app, cors_allowed_origins="*")  # Enable CORS for SocketIO
+
 GROQ_API_KEY = "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"  # Replace with your Groq API key
 GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
 GENAI_API_KEY = "AIzaSyDia290Ad4zkTdeCGKNDoGURXaaz9lXYsY"  # Replace with your Google Generative AI API key
-GPT_API_URL = "https://gpt-4o-mini.deno.dev/"
+GPT_API_URL = "https://gpt-4o-mini.deno.dev/v1/chat/completions"
+
+# Email Configuration
+SMTP_SERVER = "smtp.gmail.com"  # Replace with your SMTP server
+SMTP_PORT = 587  # Replace with your SMTP port
+SMTP_USERNAME = "hanonymous371@gmail.com"  # Replace with your email
+SMTP_PASSWORD = "dqhp wtwk flae shmv"  # Replace with your app password
+RECIPIENT_EMAIL = "hanonymous371@gmail.com"  # Replace with the recipient's email
 
 # Google Generative AI configuration
 genai.configure(api_key=GENAI_API_KEY)
@@ -21,94 +30,133 @@ def fetch_file_content(file_url):
     response.raise_for_status()
     return response.text
 
-def generate_readme_with_gpt(file_content, file_name):
+def generate_readme(file_content, file_name, model, user_requirements):
+    base_prompt = f"Create a README.md file for the file {file_name}:\n{file_content}. "
+    if user_requirements:
+        base_prompt += f"Consider the following user requirements: {user_requirements}. "
+    else:
+        base_prompt += "It should contain all necessary information like endpoint parameters, descriptions, etc. "
+    base_prompt += "Do not include ```markdown anywhere, just provide direct .md format data."
+
+    if model == "gpt":
+        return generate_readme_with_gpt(base_prompt)
+    elif model == "google":
+        return generate_readme_with_google(base_prompt)
+    elif model == "claude":
+        return generate_readme_with_claude(base_prompt)
+    elif model == "llama":
+        return generate_readme_with_llama(base_prompt)
+    elif model == "groq":
+        return generate_readme_with_groq(base_prompt)
+    else:
+        raise ValueError(f"Unsupported model: {model}")
+
+def generate_readme_with_gpt(prompt):
     headers = {"Content-Type": "application/json"}
     payload = {
         "model": "gpt-4o-mini",
         "stream": False,
         "messages": [
-            {"role": "system", "content": f"Create a README.md for the file {file_name} with all necessary information."},
-            {"role": "user", "content": "Please generate a detailed README for my project."}
+            {"role": "system", "content": prompt},
+            {"role": "user", "content": "Hi, I am rahul, Creator of MARVIS AI and Futurewise."}
         ]
     }
-    response = requests.post(GPT_API_URL, headers=headers, json=payload)
-    response.raise_for_status()
-    return response.json()["choices"][0]["message"]["content"]
-
-def generate_readme_with_google(file_content, file_name):
     try:
-        # Generate the README using Google Generative AI (Gemini)
-        response = genai.GenerativeModel("gemini-1.5-flash").generate_content(
-            f"create a readme.md file for {file_name} at {file_content}. It should contain all necessary information, like all endpoint parameters, descriptions, and other necessary things."
-        )
-        return response.text  # Return the generated content from Google API
+        response = requests.post(GPT_API_URL, headers=headers, json=payload)
+        if response.status_code == 200:
+            response_json = response.json()
+            if isinstance(response_json, dict) and "choices" in response_json:
+                return response_json["choices"][0]["message"]["content"]
+        return None
     except Exception as e:
-        return f"Error generating README with Google: {str(e)}"
+        print(f"Error with GPT API: {e}")
+        return None
 
-def generate_readme_with_claude(file_content, file_name):
+def generate_readme_with_google(prompt):
+    try:
+        response = genai.GenerativeModel("gemini-1.5-flash").generate_content(prompt)
+        return response.text
+    except Exception as e:
+        print(f"Error with Google API: {e}")
+        return None
+
+def generate_readme_with_claude(prompt):
     headers = {"Content-Type": "application/json"}
     payload = {
         "model": "claude-3-haiku",
         "stream": False,
         "messages": [
-            {"role": "system", "content": f"Create a README.md for the file {file_name} with all necessary information."},
-            {"role": "user", "content": "Please generate a detailed README for my project."}
+            {"role": "system", "content": prompt},
+            {"role": "user", "content": "Hi, I am rahul, Creator of MARVIS AI and Futurewise."}
         ]
     }
-    response = requests.post(GPT_API_URL, headers=headers, json=payload)
-    response.raise_for_status()
-    return response.json()["choices"][0]["message"]["content"]
+    try:
+        response = requests.post(GPT_API_URL, headers=headers, json=payload)
+        if response.status_code == 200:
+            response_json = response.json()
+            if isinstance(response_json, dict) and "choices" in response_json:
+                return response_json["choices"][0]["message"]["content"]
+        return None
+    except Exception as e:
+        print(f"Error with Claude API: {e}")
+        return None
 
-def generate_readme_with_llama(file_content, file_name):
+def generate_readme_with_llama(prompt):
     headers = {"Content-Type": "application/json"}
     payload = {
         "model": "llama-3.1-70b",
         "stream": False,
         "messages": [
-            {"role": "system", "content": f"Create a README.md for the file {file_name} with all necessary information."},
-            {"role": "user", "content": "Please generate a detailed README for my project."}
+            {"role": "system", "content": prompt},
+            {"role": "user", "content": "Hi, I am rahul, Creator of MARVIS AI and Futurewise."}
         ]
     }
-    response = requests.post(GPT_API_URL, headers=headers, json=payload)
-    response.raise_for_status()
-    return response.json()["choices"][0]["message"]["content"]
+    try:
+        response = requests.post(GPT_API_URL, headers=headers, json=payload)
+        if response.status_code == 200:
+            response_json = response.json()
+            if isinstance(response_json, dict) and "choices" in response_json:
+                return response_json["choices"][0]["message"]["content"]
+        return None
+    except Exception as e:
+        print(f"Error with Llama API: {e}")
+        return None
 
-def generate_readme_with_groq(file_content, file_name):
+def generate_readme_with_groq(prompt):
     headers = {"Authorization": f"Bearer {GROQ_API_KEY}", "Content-Type": "application/json"}
     payload = {
         "model": "llama-3.3-70b-versatile",
-        "messages": [{"role": "user", "content": f"Generate README for file {file_name}:\n{file_content}"}],
+        "messages": [{"role": "user", "content": prompt}],
     }
-    response = requests.post(GROQ_API_URL, headers=headers, json=payload)
-    response.raise_for_status()
-    return response.json()["choices"][0]["message"]["content"]
-
-def process_file(file, socketio, lock, sid):
     try:
-        # Ensure 'file' is a dictionary
-        if isinstance(file, dict):
-            ext = file.get("name", "").split(".")[-1]
-            if f".{ext}" in SUPPORTED_EXTENSIONS:
-                content = fetch_file_content(file.get("download_url"))
-                # Attempt to generate README with GPT first
-                readme = generate_readme_with_gpt(content, file["name"])
-                if "Error" in readme:
-                    # Fallback to Google Gemini if GPT fails
-                    readme = generate_readme_with_google(content, file["name"])
-                if "Error" in readme:
-                    # Fallback to Claude-3 if Google Gemini fails
-                    readme = generate_readme_with_claude(content, file["name"])
-                if "Error" in readme:
-                    # Fallback to Llama-3 if Claude-3 fails
-                    readme = generate_readme_with_llama(content, file["name"])
-                if "Error" in readme:
-                    # Finally, fallback to Groq if all others fail
-                    readme = generate_readme_with_groq(content, file["name"])
+        response = requests.post(GROQ_API_URL, headers=headers, json=payload)
+        if response.status_code == 200:
+            response_json = response.json()
+            if isinstance(response_json, dict) and "choices" in response_json:
+                return response_json["choices"][0]["message"]["content"]
+        return None
+    except Exception as e:
+        print(f"Error with Groq API: {e}")
+        return None
 
-                with lock:
-                    socketio.emit("readme_section", {"readme_content": readme}, room=sid)
+def process_file(file, socketio, lock, sid, user_requirements):
+    try:
+        if isinstance(file, dict) and "name" in file and "download_url" in file:
+            content = fetch_file_content(file["download_url"])
+            repo_url = file["download_url"]  # Assuming that the URL of the file corresponds to the repo URL
+            
+            models = ["gpt", "google", "claude", "llama", "groq"]
+            readme = None
+            
+            for model in models:
+                readme = generate_readme(content, repo_url, model, user_requirements)
+                if readme:
+                    break
+            
+            with lock:
+                socketio.emit("readme_section", {"readme_content": readme}, room=sid)
         else:
-            raise TypeError(f"Expected file to be a dictionary, got {type(file)}")
+            raise ValueError("Invalid file format or missing required keys ('name' and 'download_url')")
 
     except Exception as e:
         socketio.emit("error", {"message": f"Error processing {file.get('name', 'unknown')}: {str(e)}"}, room=sid)
@@ -116,13 +164,14 @@ def process_file(file, socketio, lock, sid):
 @socketio.on("generate_readme")
 def handle_generate_readme(data):
     repo_url = data.get("repoUrl")
+    user_requirements = data.get("userRequirements", "")
     sid = request.sid
     try:
         api_url = f"https://api.github.com/repos/{'/'.join(repo_url.rstrip('/').split('/')[-2:])}/contents"
         files = requests.get(api_url).json()
         lock = Lock()
         threads = [
-            Thread(target=process_file, args=(file, socketio, lock, sid)) for file in files if file["type"] == "file"
+            Thread(target=process_file, args=(file, socketio, lock, sid, user_requirements)) for file in files if file["type"] == "file"
         ]
         for thread in threads:
             thread.start()
@@ -132,65 +181,45 @@ def handle_generate_readme(data):
     except Exception as e:
         socketio.emit("error", {"message": str(e)}, room=sid)
 
+
+
+def send_email(title, description):
+    try:
+        msg = MIMEMultipart()
+        msg['From'] = SMTP_USERNAME
+        msg['To'] = RECIPIENT_EMAIL
+        msg['Subject'] = f"New Contact Form Submission: {title}"
+
+        body = f"Title: {title}\n\nDescription: {description}"
+        msg.attach(MIMEText(body, 'plain'))
+
+        with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
+            server.starttls()
+            server.login(SMTP_USERNAME, SMTP_PASSWORD)
+            server.send_message(msg)
+
+        return True
+    except Exception as e:
+        print(f"Error sending email: {e}")
+        return False
+
+@socketio.on("send_contact_form")
+def handle_send_contact_form(data):
+    title = data.get("title")
+    description = data.get("description")
+    sid = request.sid
+
+    if not title or not description:
+        socketio.emit("contact_form_response", {"success": False, "message": "Title and description are required."}, room=sid)
+        return
+
+    success = send_email(title, description)
+
+    if success:
+        socketio.emit("contact_form_response", {"success": True, "message": "Your message has been sent successfully."}, room=sid)
+    else:
+        socketio.emit("contact_form_response", {"success": False, "message": "Failed to send message. Please try again later."}, room=sid)
+
 if __name__ == "__main__":
     socketio.run(app, debug=True)
 
-# from flask import Flask, request
-# from flask_socketio import SocketIO
-# import requests
-# from threading import Thread, Lock
-
-# # Configuration
-# app = Flask(__name__)
-# socketio = SocketIO(app, cors_allowed_origins="*")
-# SUPPORTED_EXTENSIONS = [".py", ".js", ".ts", ".go", ".java"]
-# GROQ_API_KEY = "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"  # Replace with your Groq API key
-# GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
-
-# def fetch_file_content(file_url):
-#     response = requests.get(file_url)
-#     response.raise_for_status()
-#     return response.text
-
-# def generate_readme(file_content, file_name):
-#     headers = {"Authorization": f"Bearer {GROQ_API_KEY}", "Content-Type": "application/json"}
-#     payload = {
-#         "model": "llama-3.3-70b-versatile",
-#         "messages": [{"role": "user", "content": f"Generate README for file {file_name}:\n{file_content}"}],
-#     }
-#     response = requests.post(GROQ_API_URL, headers=headers, json=payload)
-#     response.raise_for_status()
-#     return response.json()["choices"][0]["message"]["content"]
-
-# def process_file(file, socketio, lock, sid):
-#     try:
-#         ext = file["name"].split(".")[-1]
-#         if f".{ext}" in SUPPORTED_EXTENSIONS:
-#             content = fetch_file_content(file["download_url"])
-#             readme = generate_readme(content, file["name"])
-#             with lock:
-#                 socketio.emit("readme_section", {"readme_content": readme}, room=sid)
-#     except Exception as e:
-#         socketio.emit("error", {"message": f"Error processing {file['name']}: {str(e)}"}, room=sid)
-
-# @socketio.on("generate_readme")
-# def handle_generate_readme(data):
-#     repo_url = data.get("repoUrl")
-#     sid = request.sid
-#     try:
-#         api_url = f"https://api.github.com/repos/{'/'.join(repo_url.rstrip('/').split('/')[-2:])}/contents"
-#         files = requests.get(api_url).json()
-#         lock = Lock()
-#         threads = [
-#             Thread(target=process_file, args=(file, socketio, lock, sid)) for file in files if file["type"] == "file"
-#         ]
-#         for thread in threads:
-#             thread.start()
-#         for thread in threads:
-#             thread.join()
-#         socketio.emit("progress", {"status": "README generation complete!"}, room=sid)
-#     except Exception as e:
-#         socketio.emit("error", {"message": str(e)}, room=sid)
-
-# if __name__ == "__main__":
-#     socketio.run(app, debug=True)
