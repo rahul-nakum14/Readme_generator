@@ -1,6 +1,6 @@
 import  {Header}  from '../components/header'
 import  {Footer}  from '../components/footer'
-import  ReadmeGenerator  from '..//components/readme-generator'
+import  {ReadmeGenerator}  from '../components/readme-generator'
 
 export default function Home() {
   return (

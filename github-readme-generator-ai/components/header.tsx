@@ -1,7 +1,13 @@
+"use client"
+
 import { Github } from 'lucide-react'
 import Link from 'next/link'
+import { useState } from 'react'
+import { ContactUs } from './contact-us'
 
 export function Header() {
+  const [isContactUsOpen, setIsContactUsOpen] = useState(false)
+
   return (
     <header className="border-b border-[#30363d] bg-[#0d1117]">
       <div className="container mx-auto px-4">
@@ -11,11 +17,17 @@ export function Header() {
             <span className="text-white font-semibold">README Generator</span>
           </div>
           <nav className="flex items-center space-x-4">
-            <Link href="#" className="text-gray-300 hover:text-white">Contact Us</Link>
+            <button
+              onClick={() => setIsContactUsOpen(true)}
+              className="text-gray-300 hover:text-white"
+            >
+              Contact Us
+            </button>
             <Link href="#" className="text-gray-300 hover:text-white">Buy Me a Coffee</Link>
           </nav>
         </div>
       </div>
+      <ContactUs isOpen={isContactUsOpen} onClose={() => setIsContactUsOpen(false)} />
     </header>
   )
 }
