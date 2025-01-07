@@ -17,9 +17,9 @@ export const ContactUs: React.FC<ContactUsProps> = ({ isOpen, onClose }) => {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const { toast } = useToast()
   const [socket, setSocket] = useState<Socket | null>(null)
-
+  
   useEffect(() => {
-    const newSocket = io("https://fantastic-fishstick-p4rxprvpjvv39945-5000.app.github.dev/")
+    const newSocket = io("https://urban-fiesta-457xw74wv7r2q4ww-5000.app.github.dev/")
     setSocket(newSocket)
 
     return () => {

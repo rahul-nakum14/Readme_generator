@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Github, Loader2, Copy, Check } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -9,7 +9,7 @@ import { Card } from '@/components/ui/card'
 import { GitHubMarkdownPreview } from './github-markdown-preview'
 import { io, Socket } from "socket.io-client"
 
-const socket: Socket = io("https://fantastic-fishstick-p4rxprvpjvv39945-5000.app.github.dev/") // Update with your backend URL
+const socket: Socket = io("https://urban-fiesta-457xw74wv7r2q4ww-5000.app.github.dev/") // Update with your backend URL
 
 export function ReadmeGenerator() {
   const [repoUrl, setRepoUrl] = useState('')
@@ -17,6 +17,27 @@ export function ReadmeGenerator() {
   const [isLoading, setIsLoading] = useState(false)
   const [generatedReadme, setGeneratedReadme] = useState('')
   const [isCopied, setIsCopied] = useState(false)
+
+  useEffect(() => {
+    socket.on("readme_section", (data: { readme_content: string, file_name: string }) => {
+      setGeneratedReadme((prev) => prev + `\n\n# ${data.file_name}\n\n${data.readme_content}`)
+    })
+
+    socket.on("error", (err: { message: string }) => {
+      console.error(err.message)
+      setIsLoading(false)
+    })
+
+    socket.on("readme_generation_complete", () => {
+      setIsLoading(false)
+    })
+
+    return () => {
+      socket.off("readme_section")
+      socket.off("error")
+      socket.off("readme_generation_complete")
+    }
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -26,33 +47,15 @@ export function ReadmeGenerator() {
     setGeneratedReadme('')
 
     socket.emit("generate_readme", { repoUrl, userRequirements })
-
-    socket.on("readme_section", (data: { readme_content: string }) => {
-      setGeneratedReadme((prev) => prev + data.readme_content)
-    })
-
-    socket.on("error", (err: { message: string }) => {
-    
-      setIsLoading(false)
-    })
-
-    socket.on("progress", (status: { status: string }) => {
-      
-      if (status.status === "README generation complete!") {
-        setIsLoading(false)
-      }
-    })
   }
 
   const copyToClipboard = async () => {
     try {
       await navigator.clipboard.writeText(generatedReadme)
       setIsCopied(true)
-     
       setTimeout(() => setIsCopied(false), 2000)
     } catch (err) {
       console.error('Failed to copy text: ', err)
-     
     }
   }
 
@@ -123,8 +126,7 @@ export function ReadmeGenerator() {
                     Copied!
                   </>
                 ) : (
-                  <>
-                    <Copy className="mr-2 h-4 w-4" />
+                  <><Copy className="mr-2 h-4 w-4" />
                     Copy to Clipboard
                   </>
                 )}
