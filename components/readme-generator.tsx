@@ -13,7 +13,7 @@ let socket: Socket;
 
 try {
   const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || "";
-  socket = io("https://urban-fiesta-457xw74wv7r2q4ww-5000.app.github.dev/", {
+  socket = io("https://readme-generator-qe85.onrender.com/", {
     transports: ['websocket', 'polling'],
     reconnectionAttempts: 5,
     reconnectionDelay: 1000,
