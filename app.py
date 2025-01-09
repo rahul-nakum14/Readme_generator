@@ -32,7 +32,7 @@ socketio = SocketIO(
 GROQ_API_KEY=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
 GROQ_API_URL=https://api.groq.com/openai/v1/chat/completions
 GENAI_API_KEY=AIzaSyDia290Ad4zkTdeCGKNDoGURXaaz9lXYsY
-GPT_API_URL=https://gpt-4o-mini.deno.dev/v1/chat/completions
+GPT_API_URL="https://gpt-4o-mini.deno.dev/v1/chat/completions"
 
 # Email Configuration
 SMTP_SERVER=smtp.gmail.com
