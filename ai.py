@@ -15,9 +15,20 @@ load_dotenv()
 
 # Configuration
 app = Flask(__name__)
-CORS(app)  # Enable CORS for Flask
-socketio = SocketIO(app, cors_allowed_origins="*")  # Enable CORS for SocketIO
+CORS(app, resources={r"/*": {"origins": "*"}})
 
+# Configure SocketIO with production-ready settings
+socketio = SocketIO(
+    app,
+    cors_allowed_origins="*",
+    async_mode='gevent',
+    logger=True,
+    engineio_logger=True,
+    ping_timeout=60,
+    ping_interval=25
+)
+
+# API Keys and URLs
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 GROQ_API_URL = os.getenv("GROQ_API_URL")
 GENAI_API_KEY = os.getenv("GENAI_API_KEY")
@@ -31,7 +42,12 @@ SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")
 RECIPIENT_EMAIL = os.getenv("RECIPIENT_EMAIL")
 
 # Google Generative AI configuration
-genai.configure(api_key=GENAI_API_KEY)
+if GENAI_API_KEY:
+    genai.configure(api_key=GENAI_API_KEY)
+
+@app.route('/socket.io/')
+def socket_io_handler():
+    return "Socket.IO endpoint"
 
 def fetch_file_content(file_url):
     response = requests.get(file_url)
@@ -39,12 +55,13 @@ def fetch_file_content(file_url):
     return response.text
 
 def generate_readme(file_content, file_name, model, user_requirements):
-    base_prompt = f"Create a README.md file for the file {file_name}:\n{file_content}. It should contain all necessary information like endpoint parameters, descriptions, etc."
+    base_prompt = f"Create a README.md file for the file {file_name}:\n{file_content}. "
     if user_requirements:
         base_prompt += f"Consider the following user requirements: {user_requirements}. "
-    base_prompt += "Do not include ```markdown anywhere, just provide direct .md format data."
+    else:
+        base_prompt += "It should contain all necessary information like endpoint parameters, descriptions, etc. "
+    base_prompt += "Do not include \`\`\`markdown anywhere, just provide direct .md format data."
 
-    print('this  is the final promyp',base_prompt)
     if model == "gpt":
         return generate_readme_with_gpt(base_prompt)
     elif model == "google":
@@ -226,5 +243,9 @@ def handle_send_contact_form(data):
         socketio.emit("contact_form_response", {"success": False, "message": "Failed to send message. Please try again later."}, room=sid)
 
 if __name__ == "__main__":
-    socketio.run(app, debug=True)
+    port = int(os.getenv("PORT", 8080))  # Render uses 8080 by default
+    socketio.run(app, host='0.0.0.0', port=port)
+else:
+    # This is the line that exposes the 'app' object to Gunicorn
+    gunicorn_app = app
 
