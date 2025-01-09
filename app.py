@@ -248,4 +248,5 @@ if __name__ == "__main__":
 else:
     # This is the line that exposes the 'app' object to Gunicorn
     gunicorn_app = app
+application = app
 
