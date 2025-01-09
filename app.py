@@ -10,8 +10,8 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 import smtplib
 
-# Load environment variables
-load_dotenv()
+# Load environment variables, but don't raise an error if .env file is not found
+load_dotenv(verbose=True, raise_if_not_found=False)
 
 # Configuration
 app = Flask(__name__)

@@ -6,3 +6,4 @@ requests
 google-generativeai
 gevent
 gevent-websocket
+python-dotenv
