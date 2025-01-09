@@ -29,17 +29,16 @@ socketio = SocketIO(
 )
 
 # API Keys and URLs
-GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-GROQ_API_URL = os.getenv("GROQ_API_URL")
-GENAI_API_KEY = os.getenv("GENAI_API_KEY")
-GPT_API_URL = os.getenv("GPT_API_URL")
+GROQ_API_KEY=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
+GROQ_API_URL=https://api.groq.com/openai/v1/chat/completions
+GENAI_API_KEY=AIzaSyDia290Ad4zkTdeCGKNDoGURXaaz9lXYsY
+GPT_API_URL=https://gpt-4o-mini.deno.dev/v1/chat/completions
 
 # Email Configuration
-SMTP_SERVER = os.getenv("SMTP_SERVER")
-SMTP_PORT = int(os.getenv("SMTP_PORT", 587))
-SMTP_USERNAME = os.getenv("SMTP_USERNAME")
-SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")
-RECIPIENT_EMAIL = os.getenv("RECIPIENT_EMAIL")
+SMTP_SERVER=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USERNAME=hanonymous371@gmail.com
+SMTP_PASSWORD=dqhp wtwk flae shmv
 
 # Google Generative AI configuration
 if GENAI_API_KEY:
