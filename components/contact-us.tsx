@@ -19,7 +19,7 @@ export const ContactUs: React.FC<ContactUsProps> = ({ isOpen, onClose }) => {
   const [socket, setSocket] = useState<Socket | null>(null)
   
   useEffect(() => {
-    const newSocket = io("https://urban-fiesta-457xw74wv7r2q4ww-5000.app.github.dev/")
+    const newSocket = io("https://readme-generator-qe85.onrender.com/")
     setSocket(newSocket)
 
     return () => {

@@ -12,7 +12,6 @@ import { io, Socket } from "socket.io-client"
 let socket: Socket;
 
 try {
-  const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || "";
   socket = io("https://readme-generator-qe85.onrender.com/", {
     transports: ['websocket', 'polling'],
     reconnectionAttempts: 5,
@@ -29,7 +28,7 @@ export function ReadmeGenerator() {
   const [isLoading, setIsLoading] = useState(false)
   const [generatedReadme, setGeneratedReadme] = useState('')
   const [isCopied, setIsCopied] = useState(false)
-  const [socketError, setSocketError] = useState(false)
+  const [, setSocketError] = useState(false)
 
   useEffect(() => {
     if (!socket) return;
