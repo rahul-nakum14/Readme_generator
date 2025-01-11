@@ -1,6 +1,6 @@
 flask
-flask_socketio
-flask_cors
+flask-socketio
+flask-cors
 requests
 google-generativeai
 gevent
