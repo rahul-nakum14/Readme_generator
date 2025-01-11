@@ -33,6 +33,10 @@ const SMTP_PASSWORD = process.env.SMTP_PASSWORD || 'dqhp wtwk flae shmv';
 // Google Generative AI configuration
 const genAI = new GoogleGenerativeAI(GENAI_API_KEY);
 
+app.get('/ping', (req, res) => {
+  res.status(200).json({ msg: 'Pong' });
+});
+
 async function fetchFileContent(fileUrl) {
   const response = await axios.get(fileUrl);
   return response.data;
