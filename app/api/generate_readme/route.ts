@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 export async function POST(req: NextRequest) {
   const { repoUrl } = await req.json()
 
-  const response = await fetch('https://readme-generator-qe85.onrender.com/generate_readme', {
+  const response = await fetch('https://readme-generator-z7oj.onrender.com/generate_readme', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

@@ -12,7 +12,7 @@ import { io, Socket } from "socket.io-client"
 let socket: Socket;
 
 try {
-  socket = io("https://readme-generator-qe85.onrender.com/", {
+  socket = io("https://readme-generator-z7oj.onrender.com/", {
     transports: ['websocket', 'polling'],
     reconnectionAttempts: 5,
     reconnectionDelay: 1000,
