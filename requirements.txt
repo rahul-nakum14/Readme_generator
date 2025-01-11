@@ -1,8 +1,0 @@
-flask
-flask-socketio
-flask-cors
-requests
-google-generativeai
-gevent
-gevent-websocket
-gunicorn
