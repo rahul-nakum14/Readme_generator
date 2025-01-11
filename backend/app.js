@@ -5,6 +5,9 @@ const cors = require('cors');
 const axios = require('axios');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const nodemailer = require('nodemailer');
+const dotenv = require('dotenv');
+
+dotenv.config();
 
 const app = express();
 const server = http.createServer(app);
@@ -33,13 +36,22 @@ const SMTP_PASSWORD = process.env.SMTP_PASSWORD || 'dqhp wtwk flae shmv';
 // Google Generative AI configuration
 const genAI = new GoogleGenerativeAI(GENAI_API_KEY);
 
-app.get('/ping', (req, res) => {
-  res.status(200).json({ msg: 'Pong' });
-});
-
 async function fetchFileContent(fileUrl) {
-  const response = await axios.get(fileUrl);
-  return response.data;
+  try {
+    const response = await axios.get(fileUrl, {
+      headers: {
+        'Authorization': `token ${process.env.GITHUB_TOKEN}`,
+        'Accept': 'application/vnd.github.v3.raw'
+      }
+    });
+    return response.data;
+  } catch (error) {
+    console.error(`Error fetching file content: ${error.message}`);
+    if (error.response) {
+      console.error(`Status: ${error.response.status}, Data: ${JSON.stringify(error.response.data)}`);
+    }
+    throw error;
+  }
 }
 
 async function generateReadme(fileContent, fileName, model, userRequirements) {
@@ -49,7 +61,7 @@ async function generateReadme(fileContent, fileName, model, userRequirements) {
   } else {
     basePrompt += 'It should contain all necessary information like endpoint parameters, descriptions, etc. ';
   }
-  basePrompt += 'Do not include ```markdown anywhere, just provide direct .md format data.';
+  basePrompt += 'Do not include \`\`\`markdown anywhere, just provide direct .md format data.';
 
   switch (model) {
     case 'gpt':
@@ -200,8 +212,14 @@ io.on('connection', (socket) => {
     const userRequirements = data.userRequirements || '';
 
     try {
-      const apiUrl = `https://api.github.com/repos/${repoUrl.split('/').slice(-2).join('/')}/contents`;
-      const response = await axios.get(apiUrl);
+      const [owner, repo] = repoUrl.split('/').slice(-2);
+      const apiUrl = `https://api.github.com/repos/${owner}/${repo}/contents`;
+      const response = await axios.get(apiUrl, {
+        headers: {
+          'Authorization': `token ${process.env.GITHUB_TOKEN}`,
+          'Accept': 'application/vnd.github.v3+json'
+        }
+      });
       const files = response.data;
 
       const filePromises = files
@@ -211,7 +229,11 @@ io.on('connection', (socket) => {
       await Promise.all(filePromises);
       socket.emit('readme_generation_complete');
     } catch (error) {
-      socket.emit('error', { message: error.message });
+      console.error(`Error in generate_readme: ${error.message}`);
+      if (error.response) {
+        console.error(`Status: ${error.response.status}, Data: ${JSON.stringify(error.response.data)}`);
+      }
+      socket.emit('error', { message: `Failed to generate README: ${error.message}` });
     }
   });
 
