@@ -1,4 +1,3 @@
-gunicorn
 flask
 flask_socketio
 flask_cors
@@ -6,4 +5,4 @@ requests
 google-generativeai
 gevent
 gevent-websocket
-python-dotenv
+gunicorn

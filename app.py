@@ -1,5 +1,4 @@
 import os
-from dotenv import load_dotenv
 import requests
 from flask import Flask, request
 from flask_socketio import SocketIO
@@ -9,9 +8,6 @@ from flask_cors import CORS
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 import smtplib
-
-# Load environment variables, but don't raise an error if .env file is not found
-load_dotenv(verbose=True, raise_if_not_found=False)
 
 # Configuration
 app = Flask(__name__)
@@ -29,16 +25,16 @@ socketio = SocketIO(
 )
 
 # API Keys and URLs
-GROQ_API_KEY="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"
-GROQ_API_URL="https://api.groq.com/openai/v1/chat/completions"
-GENAI_API_KEY="AIzaSyDia290Ad4zkTdeCGKNDoGURXaaz9lXYsY"
-GPT_API_URL="https://gpt-4o-mini.deno.dev/v1/chat/completions"
+GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "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")
+GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
+GENAI_API_KEY = os.environ.get("GENAI_API_KEY", "AIzaSyDia290Ad4zkTdeCGKNDoGURXaaz9lXYsY")
+GPT_API_URL = "https://gpt-4o-mini.deno.dev/v1/chat/completions"
 
 # Email Configuration
-SMTP_SERVER="smtp.gmail.com"
-SMTP_PORT=587
-SMTP_USERNAME="hanonymous371@gmail.com"
-SMTP_PASSWORD="dqhp wtwk flae shmv"
+SMTP_SERVER = os.environ.get("SMTP_SERVER", "smtp.gmail.com")
+SMTP_PORT = int(os.environ.get("SMTP_PORT", 587))
+SMTP_USERNAME = os.environ.get("SMTP_USERNAME", "hanonymous371@gmail.com")
+SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD", "dqhp wtwk flae shmv")
 
 # Google Generative AI configuration
 if GENAI_API_KEY:

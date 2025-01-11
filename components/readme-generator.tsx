@@ -111,7 +111,7 @@ export function ReadmeGenerator() {
                 placeholder="https://github.com/username/repo"
                 value={repoUrl}
                 onChange={(e) => setRepoUrl(e.target.value)}
-                className="pl-8 sm:pl-10 bg-[#0d1117] border-[#30363d] text-white placeholder:text-gray-500"
+                className="pl-8 sm:pl-10 bg-[#0d1117] border-[#30363d] text-black placeholder:text-gray-500"
               />
             </div>
           </div>
