@@ -130,7 +130,7 @@ export function ReadmeGenerator() {
             placeholder="Enter any special requirements for your README (optional)"
             value={userRequirements}
             onChange={(e) => setUserRequirements(e.target.value)}
-            className="bg-[#0d1117] border-[#30363d] text-black placeholder:text-gray-500"
+            className="bg-[#0d1117] border-[#30363d] text-white placeholder:text-gray-500"
           />
           <Button 
             type="submit" 
