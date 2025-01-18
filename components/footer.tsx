@@ -4,7 +4,7 @@ export function Footer() {
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-center">
           <div className="text-gray-500 text-sm">
-            © {new Date().getFullYear()} README Generator. All rights reserved.
+            {/* © {new Date().getFullYear()} README Generator. All rights reserved. */}
           </div>
         </div>
       </div>

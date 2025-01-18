@@ -1,7 +1,6 @@
 "use client"
 
 import { Github } from 'lucide-react'
-import Link from 'next/link'
 import { useState } from 'react'
 import { ContactUs } from './contact-us'
 
@@ -23,7 +22,6 @@ export function Header() {
             >
               Contact Us
             </button>
-            <Link href="#" className="text-gray-300 hover:text-white">Buy Me a Coffee</Link>
           </nav>
         </div>
       </div>
