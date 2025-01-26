@@ -3,7 +3,7 @@ import { type NextRequest, NextResponse } from "next/server";
 export const runtime = "edge";
 
 export async function GET(request: NextRequest) {
-  // Extend the type to handle geo
+  /* eslint-disable @typescript-eslint/no-explicit-any */
   const geo = (request as any).geo || {};
   const ip = (request as any).ip || "Unknown";
   const ua = (request as any).headers.get("user-agent") || "Unknown";
