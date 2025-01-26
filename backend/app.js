@@ -6,7 +6,7 @@ const axios = require('axios');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const nodemailer = require('nodemailer');
 const dotenv = require('dotenv');
-
+const mongoose = require('mongoose');
 dotenv.config();
 
 const app = express();
@@ -14,7 +14,8 @@ const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
     origin: '*',
-    methods: ['GET', 'POST']
+    methods: ['GET', 'POST'],
+    credentials: true
   }
 });
 
@@ -275,8 +276,100 @@ io.on('connection', (socket) => {
   });
 });
 
-const PORT = process.env.PORT || 8080;
-server.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
-});
+app.use((err, req, res, next) => {
+  console.error("❌ Unhandled error:", err)
+  res.status(500).json({
+    error: "Internal server error",
+    details: err.message,
+  })
+})
 
+app.use(
+  cors({
+    origin: "*", // In production, replace with your frontend domain
+    methods: ["GET", "POST"],
+    credentials: true,
+  }),
+)
+
+const db_link =
+  process.env.DB_LINK ||
+  'mongodb+srv://hanonymous371:YlKHdJPyd9xJn4aI@cluster0.evl26.mongodb.net/?retryWrites=true&w=majority';
+
+async function connectToDatabase() {
+  try {
+    await mongoose.connect(db_link, {
+      dbName: 'readme',
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+    });
+    console.log('✅ Successfully connected to MongoDB');
+  } catch (err) {
+    console.error('❌ MongoDB connection error:', err.message);
+    process.exit(1); // Exit process if unable to connect to MongoDB
+  }
+}
+// Analytics schema
+const analyticsSchema = new mongoose.Schema({
+  ip: String,
+  userAgent: String,
+  country: String,
+  region: String,
+  city: String,
+  latitude: Number,
+  longitude: Number,
+  timezone: String,
+  isp: String,
+  pageUrl: String,
+  referrer: String,
+  deviceType: String,
+  browserName: String,
+  osName: String,
+  screenResolution: String,
+  language: String,
+  timestamp: { type: Date, default: Date.now },
+})
+
+const Analytics = mongoose.model("Analytics", analyticsSchema)
+
+// API routes with better error handling
+app.post("/log-visit", async (req, res) => {
+  try {
+    const analytics = new Analytics(req.body)
+    await analytics.save()
+    console.log("📝 Visit logged:", analytics)
+    res.json({ success: true })
+  } catch (error) {
+    console.error("❌ Error logging visit:", error)
+    res.status(500).json({
+      success: false,
+      error: "Failed to log visit",
+      details: error.message,
+    })
+  }
+})
+
+app.get("/view-logs", async (req, res) => {
+  try {
+    const logs = await Analytics.find().sort({ timestamp: -1 }).limit(100)
+    res.json(logs)
+  } catch (error) {
+    console.error("❌ Error fetching logs:", error)
+    res.status(500).json({
+      error: "Failed to fetch logs",
+      details: error.message,
+    })
+  }
+})
+
+const PORT = process.env.PORT || 8080;
+async function startServer() {
+  await connectToDatabase(); // Connect to MongoDB before starting the server
+  const PORT = process.env.PORT || 8080;
+  server.listen(PORT, () => {
+    console.log(`🚀 Server is running on port ${PORT}`);
+  });
+}
+
+// Call to start the server
+startServer();
