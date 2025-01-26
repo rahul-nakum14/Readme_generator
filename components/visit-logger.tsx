@@ -2,8 +2,11 @@
 "use client"
 
 import { useEffect } from "react"
+import { usePathname } from "next/navigation";
 
 export function VisitLogger() {
+  const pathname = usePathname();
+
   useEffect(() => {
     const logVisit = async () => {
       try {
@@ -57,7 +60,10 @@ export function VisitLogger() {
           screenResolution,
           language,
         }
-
+        if (pathname === "/admin") {
+          return; // Skip logging for AdminPage
+        }
+    
         // Send to your backend
         await fetch("https://readme-generator-z7oj.onrender.com/log-visit", {
           method: "POST",
