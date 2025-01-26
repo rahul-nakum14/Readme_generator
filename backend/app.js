@@ -87,7 +87,7 @@ async function generateReadmeWithGPT(prompt) {
       stream: false,
       messages: [
         { role: 'system', content: prompt },
-        { role: 'user', content: 'Hi, I am rahul, Creator of MARVIS AI and Futurewise.' }
+        { role: 'user', content: 'Hi, I am rahul nakum' }
       ]
     }, {
       headers: { 'Content-Type': 'application/json' }
@@ -121,7 +121,7 @@ async function generateReadmeWithClaude(prompt) {
       stream: false,
       messages: [
         { role: 'system', content: prompt },
-        { role: 'user', content: 'Hi, I am rahul, Creator of MARVIS AI and Futurewise.' }
+        { role: 'user', content: 'Hi, I am rahul nakum' }
       ]
     }, {
       headers: { 'Content-Type': 'application/json' }
@@ -144,7 +144,7 @@ async function generateReadmeWithLlama(prompt) {
       stream: false,
       messages: [
         { role: 'system', content: prompt },
-        { role: 'user', content: 'Hi, I am rahul, Creator of MARVIS AI and Futurewise.' }
+        { role: 'user', content: 'Hi, I am rahul nakum' }
       ]
     }, {
       headers: { 'Content-Type': 'application/json' }
