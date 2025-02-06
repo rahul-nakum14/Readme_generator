@@ -362,6 +362,10 @@ app.get("/view-logs", async (req, res) => {
   }
 })
 
+app.get('/ping', (req, res) => {
+  res.status(200).json({ msg: 'Pong' });
+})
+
 const PORT = process.env.PORT || 8080;
 async function startServer() {
   await connectToDatabase(); // Connect to MongoDB before starting the server
