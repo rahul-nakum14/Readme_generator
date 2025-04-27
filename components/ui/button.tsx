@@ -18,9 +18,9 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
             'bg-transparent border border-purple-600 text-purple-600 hover:bg-purple-100': variant === 'outline',
             'bg-red-600 text-white hover:bg-red-700': variant === 'destructive',
             'text-purple-600 underline-offset-4 hover:underline': variant === 'link',
-            'text-sm px-3 py-1': size === 'sm',
-            'text-base px-4 py-2': size === 'default',
-            'text-lg px-6 py-3': size === 'lg',
+            'text-xs sm:text-sm px-2 py-1 sm:px-3 sm:py-1': size === 'sm',
+            'text-sm sm:text-base px-3 py-1.5 sm:px-4 sm:py-2': size === 'default',
+            'text-base sm:text-lg px-4 py-2 sm:px-6 sm:py-3': size === 'lg',
           },
           className
         )}
@@ -33,4 +33,3 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
 Button.displayName = "Button"
 
 export { Button }
-

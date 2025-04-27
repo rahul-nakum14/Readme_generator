@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { Github, Loader2, Copy, Check } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { Github, Loader2, Copy, Check,AlertTriangle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -9,7 +9,18 @@ import { Card } from '@/components/ui/card'
 import { GitHubMarkdownPreview } from './github-markdown-preview'
 import { io, Socket } from "socket.io-client"
 
-const socket: Socket = io("https://fantastic-fishstick-p4rxprvpjvv39945-5000.app.github.dev/") // Update with your backend URL
+let socket: Socket;
+
+try {
+  socket = io("https://readme-generator-z7oj.onrender.com/", {
+    transports: ['websocket', 'polling'],
+    reconnectionAttempts: 5,
+    reconnectionDelay: 1000,
+    timeout: 60000,
+  });
+} catch (error) {
+  console.error("Socket initialization error:", error);
+}
 
 export function ReadmeGenerator() {
   const [repoUrl, setRepoUrl] = useState('')
@@ -17,45 +28,65 @@ export function ReadmeGenerator() {
   const [isLoading, setIsLoading] = useState(false)
   const [generatedReadme, setGeneratedReadme] = useState('')
   const [isCopied, setIsCopied] = useState(false)
+  const [, setSocketError] = useState(false)
+
+  useEffect(() => {
+    if (!socket) return;
+
+    socket.on('connect', () => {
+      console.log('Connected to server');
+      setSocketError(false);
+    });
+
+    socket.on('connect_error', (error) => {
+      console.error('Connection error:', error);
+      setSocketError(true);
+      setIsLoading(false);
+    });
+
+    socket.on("readme_section", (data: { readme_content: string, file_name: string }) => {
+      setGeneratedReadme((prev) => prev + `\n\n# ${data.file_name}\n\n${data.readme_content}`)
+    })
+
+    socket.on("error", (err: { message: string }) => {
+      console.error(err.message)
+      setIsLoading(false)
+    })
+
+    socket.on("readme_generation_complete", () => {
+      setIsLoading(false)
+    })
+
+    return () => {
+      if (socket) {
+        socket.off("readme_section")
+        socket.off("error")
+        socket.off("readme_generation_complete")
+        socket.off('connect')
+        socket.off('connect_error')
+      }
+    }
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!repoUrl) return
+    if (!repoUrl || !socket) return
 
     setIsLoading(true)
     setGeneratedReadme('')
 
     socket.emit("generate_readme", { repoUrl, userRequirements })
-
-    socket.on("readme_section", (data: { readme_content: string }) => {
-      setGeneratedReadme((prev) => prev + data.readme_content)
-    })
-
-    socket.on("error", (err: { message: string }) => {
-    
-      setIsLoading(false)
-    })
-
-    socket.on("progress", (status: { status: string }) => {
-      
-      if (status.status === "README generation complete!") {
-        setIsLoading(false)
-      }
-    })
   }
 
   const copyToClipboard = async () => {
     try {
       await navigator.clipboard.writeText(generatedReadme)
       setIsCopied(true)
-     
       setTimeout(() => setIsCopied(false), 2000)
     } catch (err) {
       console.error('Failed to copy text: ', err)
-     
     }
   }
-
   return (
     <div className="w-full max-w-6xl mx-auto space-y-8">
       <div className="space-y-4 text-center">
@@ -68,6 +99,18 @@ export function ReadmeGenerator() {
       </div>
 
       <Card className="p-6 bg-[#161b22] border-[#30363d]">
+        <div className="mb-6 flex items-start space-x-3 p-4 bg-yellow-900/20 rounded-lg border border-yellow-700/50">
+          <AlertTriangle className="w-6 h-6 text-yellow-500 flex-shrink-0 mt-0.5" />
+          <div className="text-sm text-yellow-200">
+            <p className="font-semibold mb-1">Important Note:</p>
+            <p>
+              The AI-generated README may contain inaccuracies or false positives. 
+              While we strive for accuracy, please review and verify the content 
+              before using it in your project. This tool is designed to assist and 
+              provide a starting point, not to replace human judgment and expertise.
+            </p>
+          </div>
+        </div>
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="flex gap-3">
             <div className="relative flex-1">

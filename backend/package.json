@@ -1,0 +1,23 @@
+{
+  "name": "readme-generator",
+  "version": "1.0.0",
+  "description": "README Generator using various AI models",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js"
+  },
+  "dependencies": {
+    "@google/generative-ai": "^0.1.0",
+    "axios": "^0.24.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "geoip-lite": "^1.4.10",
+    "mongoose": "^8.9.5",
+    "nodemailer": "^6.9.16",
+    "socket.io": "^4.8.1"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}
